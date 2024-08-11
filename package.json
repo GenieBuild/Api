@@ -1,0 +1,24 @@
+{
+  "name": "@geniebuild/api",
+  "version": "1.0.0",
+  "description": "Api for geniGebuild ",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GenieBuild/Api.git"
+  },
+  "keywords": [
+    "Setup",
+    "Dashboard",
+    "React"
+  ],
+  "author": "Anish",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/GenieBuild/Api/issues"
+  },
+  "homepage": "https://github.com/GenieBuild/Api#readme"
+}
