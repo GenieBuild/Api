@@ -8,7 +8,7 @@ const cors = require('cors');
 const { MongoClient } = require('mongodb');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000; // Use environment variable or default to 3000
 const SECRET_KEY = process.env.SECRET_KEY;
 const MONGO_URI = process.env.MONGO_URI;
 
@@ -23,7 +23,7 @@ MongoClient.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true
     db = client.db('authdb');
     console.log('Connected to MongoDB');
   })
-  .catch(error => console.error(error));
+  .catch(error => console.error('Error connecting to MongoDB:', error));
 
 // Register endpoint
 app.post('/register', async (req, res) => {
@@ -38,6 +38,7 @@ app.post('/register', async (req, res) => {
     await usersCollection.insertOne({ username, password: hashedPassword });
     res.status(201).json({ message: 'User registered' });
   } catch (error) {
+    console.error('Error during registration:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -54,6 +55,7 @@ app.post('/login', async (req, res) => {
     const token = jwt.sign({ username }, SECRET_KEY, { expiresIn: '1h' });
     res.json({ token });
   } catch (error) {
+    console.error('Error during login:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -71,6 +73,45 @@ app.get('/protected', (req, res) => {
     }
     res.json({ message: 'Protected resource accessed', user });
   });
+});
+
+// Command endpoint
+app.post('/send-command', authenticateToken, (req, res) => {
+  const { command } = req.body;
+  // Handle command execution logic here
+  console.log(`Received command: ${command}`);
+  res.json({ message: 'Command received' });
+});
+
+// Middleware to authenticate token
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (token == null) return res.sendStatus(401);
+
+  jwt.verify(token, SECRET_KEY, (err, user) => {
+    if (err) return res.sendStatus(403);
+    req.user = user;
+    next();
+  });
+}
+
+// Status endpoint
+app.get('/clients-status', authenticateToken, (req, res) => {
+  // Simulate fetching clients' status
+  const clients = [
+    { id: 'client1', online: false },
+    { id: 'client2', online: false }
+  ];
+  res.json(clients);
+});
+
+// Update client status
+app.post('/update-client-status', authenticateToken, (req, res) => {
+  const { clientId, online } = req.body;
+  // Update client status logic here
+  console.log(`Updated client ${clientId} status to ${online}`);
+  res.json({ message: 'Client status updated' });
 });
 
 app.listen(PORT, () => {
