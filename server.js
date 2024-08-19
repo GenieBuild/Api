@@ -1,14 +1,14 @@
-require('dotenv').config(); // Add this at the top
+require('dotenv').config();
 
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const { MongoClient } = require('mongodb');
+const { MongoClient, ObjectId } = require('mongodb');
 
 const app = express();
-const PORT = process.env.PORT || 3000; // Use environment variable or default to 3000
+const PORT = process.env.PORT || 3000;
 const SECRET_KEY = process.env.SECRET_KEY;
 const MONGO_URI = process.env.MONGO_URI;
 
@@ -17,7 +17,7 @@ app.use(cors());
 
 let db;
 
-// Connect to MongoDB
+// MongoDB connection
 MongoClient.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(client => {
     db = client.db('authdb');
@@ -60,34 +60,11 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// Protected endpoint example
-app.get('/protected', (req, res) => {
-  const authHeader = req.headers.authorization;
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ message: 'Token missing' });
-  }
-  jwt.verify(token, SECRET_KEY, (err, user) => {
-    if (err) {
-      return res.status(403).json({ message: 'Invalid token' });
-    }
-    res.json({ message: 'Protected resource accessed', user });
-  });
-});
-
-// Command endpoint
-app.post('/send-command', authenticateToken, (req, res) => {
-  const { command } = req.body;
-  // Handle command execution logic here
-  console.log(`Received command: ${command}`);
-  res.json({ message: 'Command received' });
-});
-
 // Middleware to authenticate token
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
-  if (token == null) return res.sendStatus(401);
+  if (!token) return res.sendStatus(401);
 
   jwt.verify(token, SECRET_KEY, (err, user) => {
     if (err) return res.sendStatus(403);
@@ -96,22 +73,41 @@ function authenticateToken(req, res, next) {
   });
 }
 
-// Status endpoint
-app.get('/clients-status', authenticateToken, (req, res) => {
-  // Simulate fetching clients' status
-  const clients = [
-    { id: 'client1', online: false },
-    { id: 'client2', online: false }
-  ];
-  res.json(clients);
+// Command endpoint
+app.post('/send-command', authenticateToken, (req, res) => {
+  const { command } = req.body;
+  console.log(`Received command: ${command}`);
+  // Implement command handling logic here
+  res.json({ message: 'Command received and processed' });
+});
+
+// Clients Status endpoint
+app.get('/clients-status', authenticateToken, async (req, res) => {
+  try {
+    const clientsCollection = db.collection('clients');
+    const clients = await clientsCollection.find().toArray();
+    res.json(clients);
+  } catch (error) {
+    console.error('Error fetching clients status:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 });
 
 // Update client status
-app.post('/update-client-status', authenticateToken, (req, res) => {
+app.post('/update-client-status', authenticateToken, async (req, res) => {
   const { clientId, online } = req.body;
-  // Update client status logic here
-  console.log(`Updated client ${clientId} status to ${online}`);
-  res.json({ message: 'Client status updated' });
+  try {
+    const clientsCollection = db.collection('clients');
+    await clientsCollection.updateOne(
+      { _id: ObjectId(clientId) },
+      { $set: { online, lastActive: new Date() } }
+    );
+    console.log(`Updated client ${clientId} status to ${online}`);
+    res.json({ message: 'Client status updated' });
+  } catch (error) {
+    console.error('Error updating client status:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 });
 
 app.listen(PORT, () => {
