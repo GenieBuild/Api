@@ -17,11 +17,11 @@ app.use(cors());
 
 let db;
 
-// MongoDB connection
+// Connect to MongoDB
 MongoClient.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(client => {
     db = client.db('authdb');
-    console.log('Connected to MongoDB');
+    console.log(new Date() + 'Connected to MongoDB');
   })
   .catch(error => console.error('Error connecting to MongoDB:', error));
 
@@ -73,14 +73,6 @@ function authenticateToken(req, res, next) {
   });
 }
 
-// Command endpoint
-app.post('/send-command', authenticateToken, (req, res) => {
-  const { command } = req.body;
-  console.log(`Received command: ${command}`);
-  // Implement command handling logic here
-  res.json({ message: 'Command received and processed' });
-});
-
 // Clients Status endpoint
 app.get('/clients-status', authenticateToken, async (req, res) => {
   try {
@@ -93,17 +85,23 @@ app.get('/clients-status', authenticateToken, async (req, res) => {
   }
 });
 
-// Update client status
+// Update client status with timestamp
 app.post('/update-client-status', authenticateToken, async (req, res) => {
   const { clientId, online } = req.body;
   try {
     const clientsCollection = db.collection('clients');
+    const lastStatusChange = new Date();
     await clientsCollection.updateOne(
       { _id: ObjectId(clientId) },
-      { $set: { online, lastActive: new Date() } }
+      { 
+        $set: { 
+          online, 
+          lastStatusChange 
+        } 
+      }
     );
-    console.log(`Updated client ${clientId} status to ${online}`);
-    res.json({ message: 'Client status updated' });
+    console.log(`Updated client ${clientId} status to ${online} at ${lastStatusChange}`);
+    res.json({ message: 'Client status updated', lastStatusChange });
   } catch (error) {
     console.error('Error updating client status:', error);
     res.status(500).json({ message: 'Internal server error' });
